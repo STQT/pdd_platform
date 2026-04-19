@@ -1,7 +1,14 @@
 from rest_framework import serializers
 from apps.questions.serializers import QuestionSerializer
 from apps.questions.models import Question
-from .models import TestSession, SessionAnswer
+from .models import TestSession, SessionAnswer, TelegramUser
+
+
+class TelegramUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TelegramUser
+        fields = ["chat_id", "username", "first_name", "last_name", "is_active", "created_at"]
+        read_only_fields = ["is_active", "created_at"]
 
 
 class StartSessionSerializer(serializers.Serializer):

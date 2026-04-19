@@ -5,12 +5,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from apps.questions.models import Question
-from .models import TestSession, SessionAnswer
+from .models import TestSession, SessionAnswer, TelegramUser
 from .serializers import (
     StartSessionSerializer,
     SubmitAnswerSerializer,
     TestSessionSerializer,
     ResultsSerializer,
+    TelegramUserSerializer,
 )
 
 EXAM_QUESTION_COUNT = 20
@@ -137,6 +138,41 @@ class SubmitAnswerView(APIView):
             response_data["explanation2_media"] = question.explanation2_media
 
         return Response(response_data)
+
+
+class TelegramUserUpsertView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        chat_id = request.data.get("chat_id")
+        if not chat_id:
+            return Response({"detail": "chat_id required."}, status=400)
+        user, created = TelegramUser.objects.update_or_create(
+            chat_id=chat_id,
+            defaults={
+                "username": request.data.get("username"),
+                "first_name": request.data.get("first_name"),
+                "last_name": request.data.get("last_name"),
+                "is_active": True,
+            },
+        )
+        return Response(
+            TelegramUserSerializer(user).data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class TelegramUserBlockView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, chat_id):
+        try:
+            user = TelegramUser.objects.get(chat_id=chat_id)
+        except TelegramUser.DoesNotExist:
+            return Response({"detail": "Not found."}, status=404)
+        user.is_active = False
+        user.save(update_fields=["is_active", "updated_at"])
+        return Response({"detail": "deactivated"})
 
 
 class SessionResultsView(APIView):

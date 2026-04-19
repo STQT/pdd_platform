@@ -3,6 +3,25 @@ from django.db import models
 from apps.questions.models import Category, Question, Answer
 
 
+class TelegramUser(models.Model):
+    chat_id = models.BigIntegerField(primary_key=True)
+    username = models.CharField(max_length=255, blank=True, null=True)
+    first_name = models.CharField(max_length=255, blank=True, null=True)
+    last_name = models.CharField(max_length=255, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        name = self.first_name or ""
+        if self.username:
+            name += f" (@{self.username})"
+        return f"{name} [{self.chat_id}]"
+
+
 class TestSession(models.Model):
     MODE_TRAINING = "training"
     MODE_EXAM = "exam"
