@@ -27,7 +27,10 @@ export interface Question {
   text_ru: string;
   text_kz: string;
   question_media: string;
+  explanation_ru: string;
+  explanation_kz: string;
   explanation_media: string;
+  explanation2_media: string;
   correct_answer_index: number;
   answers: Answer[];
 }
@@ -50,7 +53,10 @@ export interface TestSession {
 export interface AnswerResult {
   is_correct: boolean;
   correct_answer_id: number;
+  explanation_ru?: string;
+  explanation_kz?: string;
   explanation_media?: string;
+  explanation2_media?: string;
   session: TestSession;
 }
 

@@ -20,7 +20,11 @@ class Question(models.Model):
     text_kz = models.TextField(blank=True)
     text_en = models.TextField(blank=True)
     question_media = models.CharField(max_length=500, blank=True)
+    explanation_ru = models.TextField(blank=True)
+    explanation_kz = models.TextField(blank=True)
+    explanation_en = models.TextField(blank=True)
     explanation_media = models.CharField(max_length=500, blank=True)
+    explanation2_media = models.CharField(max_length=500, blank=True)
     correct_answer_index = models.PositiveSmallIntegerField()  # 0-based index in answers
 
     class Meta:

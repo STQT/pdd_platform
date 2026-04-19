@@ -61,10 +61,10 @@ def question_kb(
 ) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text=(ans["text_kz"] if lang == "kz" and ans.get("text_kz") else ans["text_ru"])[:64],
+            text=LETTERS[i] if i < len(LETTERS) else str(i + 1),
             callback_data=f"ans:{session_key}:{question_id}:{ans['id']}:{lang}",
         )]
-        for ans in answers
+        for i, ans in enumerate(answers)
     ])
 
 
@@ -74,6 +74,7 @@ def result_kb(
     selected_id: int,
     session_key: str,
     lang: str,
+    include_next: bool = True,
 ) -> InlineKeyboardMarkup:
     rows = []
     for ans in answers:
@@ -88,12 +89,20 @@ def result_kb(
             text=f"{prefix}{label[:58]}",
             callback_data=f"noop:{ans['id']}",
         )])
-    next_label = "➡️ Следующий" if lang == "ru" else "➡️ Келесі"
-    rows.append([InlineKeyboardButton(
-        text=next_label,
-        callback_data=f"next:{session_key}:{lang}",
-    )])
+    if include_next:
+        next_label = "➡️ Следующий" if lang == "ru" else "➡️ Келесі"
+        rows.append([InlineKeyboardButton(
+            text=next_label,
+            callback_data=f"next:{session_key}:{lang}",
+        )])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def next_kb(session_key: str, lang: str) -> InlineKeyboardMarkup:
+    label = "➡️ Следующий" if lang == "ru" else "➡️ Келесі"
+    return InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=label, callback_data=f"next:{session_key}:{lang}")
+    ]])
 
 
 # ── Media ─────────────────────────────────────────────────────────────────────
@@ -127,9 +136,16 @@ async def send_video_cached(
 
 # ── Question / Results rendering ──────────────────────────────────────────────
 
+LETTERS = ["А", "Б", "В", "Г", "Д"]
+
 def fmt_question(q: dict, index: int, total: int, lang: str) -> str:
     text = q["text_kz"] if lang == "kz" and q.get("text_kz") else q["text_ru"]
-    return f"❓ <b>Вопрос {index + 1}/{total}</b>\n\n{text}"
+    lines = [f"❓ <b>Вопрос {index + 1}/{total}</b>\n\n{text}\n"]
+    for i, ans in enumerate(q.get("answers", [])):
+        ans_text = ans["text_kz"] if lang == "kz" and ans.get("text_kz") else ans["text_ru"]
+        letter = LETTERS[i] if i < len(LETTERS) else str(i + 1)
+        lines.append(f"<b>{letter})</b> {ans_text}")
+    return "\n".join(lines)
 
 
 async def send_question(message: Message, session: dict, lang: str):
@@ -231,8 +247,11 @@ async def answer_handler(callback: CallbackQuery, bot: Bot):
     correct_id: int = result["correct_answer_id"]
     session: dict = result["session"]
 
-    # Edit keyboard to reveal correct / wrong answer
-    kb = result_kb(question["answers"], correct_id, answer_id, session_key, lang)
+    is_training = session.get("mode") == "training"
+
+    # Edit keyboard to reveal correct / wrong answer (no Next button in training — it goes on explanation)
+    kb = result_kb(question["answers"], correct_id, answer_id, session_key, lang,
+                   include_next=not is_training)
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
     except Exception:
@@ -244,14 +263,28 @@ async def answer_handler(callback: CallbackQuery, bot: Bot):
         show_alert=False,
     )
 
-    # Explanation video (training mode only)
-    if session.get("mode") == "training":
-        expl = result.get("explanation_media")
-        if expl:
-            label = "💡 Объяснение" if lang == "ru" else "💡 Түсіндірме"
-            sent = await send_video_cached(callback.message, expl, label)
-            if not sent:
-                pass  # explanation is optional, skip silently
+    # Explanation (training mode only) — Next button attached here
+    if is_training:
+        expl_text = result.get("explanation_kz" if lang == "kz" else "explanation_ru") or ""
+        expl_video = result.get("explanation_media") or ""
+        expl2_video = result.get("explanation2_media") or ""
+        header = "💡 Объяснение" if lang == "ru" else "💡 Түсіндірме"
+        nxt = next_kb(session_key, lang) if session["status"] == "active" else None
+        if expl_text or expl_video:
+            caption = f"<b>{header}</b>" + (f"\n\n{expl_text}" if expl_text else "")
+            if expl_video:
+                # Next button on last explanation video
+                last_kb = nxt if not expl2_video else None
+                await send_video_cached(callback.message, expl_video, caption, last_kb)
+            elif expl_text:
+                last_kb = nxt if not expl2_video else None
+                await callback.message.answer(caption, reply_markup=last_kb, parse_mode="HTML")
+        if expl2_video:
+            await send_video_cached(callback.message, expl2_video, "", nxt)
+        elif not (expl_text or expl_video) and nxt:
+            # No explanation at all — show Next button as plain message
+            next_label = "➡️ Следующий вопрос" if lang == "ru" else "➡️ Келесі сұрақ"
+            await callback.message.answer(next_label, reply_markup=nxt)
 
     # Session finished → show results
     if session["status"] != "active":

@@ -50,12 +50,15 @@ class Command(BaseCommand):
             )
 
             media = item.get("media") or {}
-            q_media = media.get("question_file", "") or ""
-            e_media = media.get("explanation_file", "") or ""
+            explanation = item.get("explanation") or {}
 
-            # Strip "media/" prefix — stored relative to MEDIA_ROOT
-            q_media = q_media.replace("media/", "", 1) if q_media.startswith("media/") else q_media
-            e_media = e_media.replace("media/", "", 1) if e_media.startswith("media/") else e_media
+            def strip_media(p):
+                p = p or ""
+                return p.replace("media/", "", 1) if p.startswith("media/") else p
+
+            q_media = strip_media(media.get("question_file", ""))
+            e_media = strip_media(media.get("explanation_file", ""))
+            e2_media = strip_media(media.get("explanation2_file", ""))
 
             question, is_new = Question.objects.update_or_create(
                 original_id=item["id"],
@@ -65,7 +68,11 @@ class Command(BaseCommand):
                     "text_kz": q_text.get("kz", ""),
                     "text_en": q_text.get("en", ""),
                     "question_media": q_media,
+                    "explanation_ru": explanation.get("ru", "") if isinstance(explanation, dict) else "",
+                    "explanation_kz": explanation.get("kz", "") if isinstance(explanation, dict) else "",
+                    "explanation_en": explanation.get("en", "") if isinstance(explanation, dict) else "",
                     "explanation_media": e_media,
+                    "explanation2_media": e2_media,
                     "correct_answer_index": correct_idx,
                 },
             )

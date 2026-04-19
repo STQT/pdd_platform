@@ -131,7 +131,10 @@ class SubmitAnswerView(APIView):
 
         # In training mode, always show explanation
         if session.mode == TestSession.MODE_TRAINING:
+            response_data["explanation_ru"] = question.explanation_ru
+            response_data["explanation_kz"] = question.explanation_kz
             response_data["explanation_media"] = question.explanation_media
+            response_data["explanation2_media"] = question.explanation2_media
 
         return Response(response_data)
 

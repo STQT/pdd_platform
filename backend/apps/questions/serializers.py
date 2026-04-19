@@ -26,7 +26,9 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = [
             "id", "original_id", "category_id", "category_title",
             "text_ru", "text_kz", "text_en",
-            "question_media", "explanation_media",
+            "question_media",
+            "explanation_ru", "explanation_kz", "explanation_en",
+            "explanation_media", "explanation2_media",
             "correct_answer_index", "answers",
         ]
 
