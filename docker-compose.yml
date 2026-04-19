@@ -1,0 +1,70 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    volumes:
+      - ./backend/media_files:/app/media_files
+      - static_files:/app/staticfiles
+    expose:
+      - "8000"
+
+  bot:
+    build: ./bot
+    restart: always
+    depends_on:
+      - backend
+    env_file: .env
+    environment:
+      API_URL: http://backend:8000/api
+      MEDIA_BASE_URL: https://pddtest.leetcode.uz/media
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://pddtest.leetcode.uz/api
+        NEXT_PUBLIC_MEDIA_URL: https://pddtest.leetcode.uz/media
+    restart: always
+    depends_on:
+      - backend
+    expose:
+      - "3000"
+
+  nginx:
+    build: ./nginx
+    restart: always
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - static_files:/app/staticfiles:ro
+
+volumes:
+  postgres_data:
+  static_files:
