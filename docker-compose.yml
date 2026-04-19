@@ -28,7 +28,7 @@ services:
       - ./backend/media_files:/app/media_files
       - static_files:/app/staticfiles
     ports:
-      - "127.0.0.1:8001:8000"
+      - "127.0.0.1:8100:8000"
 
   bot:
     build: ./bot
@@ -38,7 +38,9 @@ services:
     env_file: .env
     environment:
       API_URL: http://backend:8000/api
-      MEDIA_BASE_URL: https://pddtest.leetcode.uz/media
+      MEDIA_PUBLIC_URL: https://pddtest.leetcode.uz/media
+    volumes:
+      - bot_data:/app/data
 
   frontend:
     build:
@@ -50,8 +52,9 @@ services:
     depends_on:
       - backend
     ports:
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3100:3000"
 
 volumes:
   postgres_data:
   static_files:
+  bot_data:
